@@ -1,0 +1,20 @@
+Buzera Tiberiu 323CA
+
+Tema1 -Protocoale de comunicatie-
+
+Pentru rezolvarea temei am facut parsarea fisierelor rtable folosind o structura
+rtable care contine 3 campuri de tipul uint32_t, unul pentru prefix, adica
+adresa ip a calculatorului, next_hop, adresa ip a urmatorului calculator, masca
+calculatorului curent si un integer care contine interfata.
+Am parcurs o data fisierul pentru a afla numarul de randuri dupa am parcurs cu
+un for numarul de randuri si am citit din fisier fiecare rand cu: %s %s %s %d
+pentru a obtine cele 3 adrese si interfata. Am folosit functia inet_aton pentru
+a retine adresele in numere de forma uint32_t.
+
+Pentru ARP REQUEST am creat o structura ARP_HDR in care am parsat pachetul m.
+Am verificat daca este diferit de NULL apoi verificam daca este REQUEST sau 
+REPLY. Daca este REQUEST apelam fucntia send_arp care are nevoie de 5 parametrii:
+destination IP address si anume arp_hdr->spa, source IP address, arp_hdr->tpa,
+ethernet header care este dat de structura eth_hdr, interface, care se gaseste
+in m.interface si arp_op care in functie de caz poate fi ARPOP_REQUEST sau 
+ARPOP_REPLY.

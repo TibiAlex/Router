@@ -1,0 +1,105 @@
+@Copyright Virtan Alina-Elena 321 CC
+
+README TEMA 1 - PROTOCOALE DE COMUNICATIE
+
+	Parsarea tabelei de rutare:
+	- am inceput prin a face parsarea tabelei de rutare, citind din fisierul 
+rtable.txt si adaugand intrari de tip route_table_entry intr-un vector. 
+	- structura route_table_entry contine campuri pentru: prefix, next hop, 
+masca si interfata
+	- pentru a stoca in structura adresele IP corespunzatoare primelor 
+3 campuri (prefix, masca, next hop), le convertesc de la formatul x.x.x.x la 
+un intreg utilizand inet_addr 
+
+
+	Cautarea in tabela de rutare: 
+	- problema: numarul de intrari din fisierul rtable.txt era foarte mare, 
+deci o cautare liniara in vectorul de intrari nu ar fi fost deloc eficienta
+	- solutie: am realizat o sortare dupa prefix si, in cazul in care prefixele 
+sunt egale, dupa masca, apoi am implementat cautarea celei mai specifice intrari 
+din tabela de rutare utilizand algoritmul binary search putin modificat
+	- cand gasesc o intrare care face match, continui sa ma uit la intrarile 
+urmatoare pana cand gasesc prima intrare care nu mai face match
+	- faptul ca am sortat crescator in prealabil dupa prefix si masca imi 
+garanteaza ca ultima intrare care a facut match este cea mai specifica intrare 
+din tabela de rutare
+
+
+	Intr-o bucla infinita, routerul primeste pachete si le trateaza diferit in 
+functie de informatiile continute in headere:
+
+	Cazul cand e pachet IP destinat routerului si e de tip ICMP ECHO request:
+	- semnalez sursei ca destinatia a receptionat pachetul de la aceasta
+	- setez campul TTL pentru pachetul care va pleca inapoi spre sursa
+	- interschimb ip-ul sursa cu ip-ul destinatie	
+	- interschimb MAC-ul sursa cu MAC-ul destinatie
+	- recalculez suma de control pentru headerul ip
+	- actualizez tipul headerul icmp la ICMP_ECHOREPLY si setez codul 0
+	- recalculez suma de control pentru headerul icmp
+	- trimit spre sursa pachetul de tip ICMP REPLY si trec la urmatorul pachet
+
+
+	Cazul cand e pachet ARP Request catre un IP al routerului:
+	- verific daca ip-ul destinatie al ARP Reply-ului este un ip de pe una 
+dintre interfetele routerului; in caz afirmativ, formez un pachet de tip 
+ARP Reply si il trimit sursei
+	- initial, MAC-ul sursa e adresa fizica a sursei, iar MAC-ul destinatie e 
+broadcast
+	- interschimb MAC-ul sursa cu MAC-ul destinatie: MAC-ul sursa va fi 
+broadcast, MAC-ul destinatie va fi MAC-ul sursa care trimisese initial 
+ARP Request-ul
+	- obtin MAC-ul sursa al routerului cu functia get_mac_interface, unde primul 
+parametru va fi interfata routerului spre care a fost facut ARP Request-ul
+	- setez campul arp_op sa fie de tip ARPOP_REPLY
+	- interschimb ip-ul sender-ului si al target-ului
+	- completez header-ul de Ethernet cu MAC-urile corespunzatoare 
+	- trimit ARP Reply-ul spre sursa si trec la pachetul urmator
+ 
+
+	Cazul cand e pachet ARP Reply:
+	- ma asigur ca intrarea nu se regaseste deja in tabela ARP si o adaug
+	- setez campul update_arp_table pe 1 pentru a sti ulterior ca am adaugat o 
+intrare noua in tabela ARP, deci pot sa forwardez si alte pachete din coada
+	- daca pachetul a fost de tip ARP Reply si am adaugat o intrare in tabela ARP, 
+scot pachetul din coada si il forwardez; altfel, pachetul ramane in continuare in coada 
+pana cand in tabela ARP se va adauga intrare corespunzatoare lui
+
+
+	Cazul cand e pachet cu TTL <= 1:
+	- semnalez sursei ca pachetul transmis de ea a stat prea mult in retea, 
+deci ceva e eronat in privinta lui
+	- setez campul TTL pentru pachetul care va pleca inapoi spre sursa
+	- interschimb ip-ul sursa cu ip-ul destinatie	
+	- interschimb MAC-ul sursa cu MAC-ul destinatie
+	- recalculez suma de control pentru headerul ip
+	- actualizez tipul headerul icmp la ICMP_TIME_EXCEEDED si setez codul 0
+	- recalculez suma de control pentru headerul icmp
+	- trimit spre sursa pachetul de tip ICMP TIME EXCEEDED si trec la urmatorul 
+pachet 
+
+
+	Cazul cand e pachet catre o adresa inexistenta in tabela de rutare:
+	- semnalez sursei ca pachetul transmis de ea nu are o destinatie valida
+	- setez campul TTL pentru pachetul care va pleca inapoi spre sursa
+	- interschimb ip-ul sursa cu ip-ul destinatie	
+	- interschimb MAC-ul sursa cu MAC-ul destinatie
+	- recalculez suma de control pentru headerul ip
+	- actualizez tipul headerul icmp la ICMP_DEST_UNREACH si setez codul 0 
+	- recalculez suma de control pentru headerul icmp
+	- trimit spre sursa pachetul de tip ICMP DESTINATION UNREACHABLE si trec 
+la urmatorul pachet 
+
+
+	Cazul cand e pachet cu checksum gresit: 
+	- dau drop la pachet si trec la urmatorul pachet
+
+
+	Dupa ce pachetul a trecut de toate filtrele de mai sus, caut intrarea cea 
+mai specifica din tabela de rutare (folosind binary search-ul modificat descris 
+anterior) si modific adresele source si destination MAC. Daca adresa MAC nu 
+este cunoscuta local, generez un ARP request si transmit pe interfata destinatie,
+salveaza pachetul in coada pentru transmitere. Altfel, trimit pachetele aflate 
+in coada pentru care adresa MAC e cunoscuta.  
+
+	PS: Am atasat screenshot cu rezultatele de pe checkerul local, unde 
+punctajul este 110p.
